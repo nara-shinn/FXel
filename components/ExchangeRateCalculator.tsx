@@ -1,75 +1,77 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 
-const CALC_CURRENCIES = [
-  { code: 'KRW', country: '대한민국', flag: '🇰🇷', unit: '원', decimals: 0, rateToKRW: 1 },
-  { code: 'USD', country: '미국', flag: '🇺🇸', unit: '달러', decimals: 2, rateToKRW: 1395 },
-  { code: 'JPY', country: '일본', flag: '🇯🇵', unit: '엔', decimals: 0, rateToKRW: 9.22 },
-  { code: 'EUR', country: '유로존', flag: '🇪🇺', unit: '유로', decimals: 2, rateToKRW: 1455 },
-  { code: 'CNY', country: '중국', flag: '🇨🇳', unit: '위안', decimals: 1, rateToKRW: 182 },
-]
-
-function getCfg(code: string) {
-  return CALC_CURRENCIES.find(c => c.code === code)!
+interface CurrencyDef {
+  code: string
+  country: string
+  flag: string
+  unit: string
+  decimals: number
+  rateToKRW: number
 }
 
-function formatNumber(value: number, code: string): string {
-  const cfg = getCfg(code)
+const CURRENCY_META = [
+  { code: 'KRW', country: '대한민국', flag: '🇰🇷', unit: '원', decimals: 0, defaultRate: 1 },
+  { code: 'USD', country: '미국', flag: '🇺🇸', unit: '달러', decimals: 2, defaultRate: 1395 },
+  { code: 'JPY', country: '일본', flag: '🇯🇵', unit: '엔', decimals: 0, defaultRate: 9.22 },
+  { code: 'EUR', country: '유로존', flag: '🇪🇺', unit: '유로', decimals: 2, defaultRate: 1455 },
+  { code: 'CNY', country: '중국', flag: '🇨🇳', unit: '위안', decimals: 1, defaultRate: 182 },
+]
+
+interface Props {
+  liveRates?: Record<string, number> | null
+}
+
+function formatNumber(value: number, cfg: CurrencyDef): string {
   if (cfg.decimals === 0) return value.toLocaleString('ko-KR', { maximumFractionDigits: 0 })
   return value.toLocaleString('ko-KR', { minimumFractionDigits: cfg.decimals, maximumFractionDigits: cfg.decimals })
 }
 
-function formatWithUnit(value: number, code: string): string {
-  return `${formatNumber(value, code)} ${getCfg(code).unit}`
+function formatWithUnit(value: number, cfg: CurrencyDef): string {
+  return `${formatNumber(value, cfg)} ${cfg.unit}`
 }
 
 function CurrencyBox({
-  code,
+  cfg,
+  allCurrencies,
   value,
   isInput,
   onChange,
   onCurrencyChange,
 }: {
-  code: string
+  cfg: CurrencyDef
+  allCurrencies: CurrencyDef[]
   value: string | number
   isInput: boolean
   onChange?: (v: string) => void
   onCurrencyChange: (code: string) => void
 }) {
-  const cfg = getCfg(code)
   const numericVal = typeof value === 'string' ? (parseFloat(value) || 0) : value
 
   return (
     <div className="border border-[#E5EBEE] rounded-[6px] overflow-hidden">
-      {/* Currency header — clickable to change */}
       <div className="relative bg-[#F7F9FA] border-b border-[#E5EBEE] px-4 py-2.5">
         <div className="flex items-center gap-2">
           <span className="text-[18px] leading-none">{cfg.flag}</span>
           <span className="text-[13px] font-semibold text-[#222222]">{cfg.country}</span>
           <span className="text-[11px] text-[#878787] font-medium">{cfg.code}</span>
         </div>
-        {/* Chevron */}
-        <svg
-          className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"
-          width="12" height="12" viewBox="0 0 12 12" fill="none"
-        >
+        <svg className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" width="12" height="12" viewBox="0 0 12 12" fill="none">
           <path d="M2 4l4 4 4-4" stroke="#B3B9C4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        {/* Transparent select overlay */}
         <select
-          value={code}
+          value={cfg.code}
           onChange={e => onCurrencyChange(e.target.value)}
           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
           aria-label="통화 선택"
         >
-          {CALC_CURRENCIES.map(c => (
+          {allCurrencies.map(c => (
             <option key={c.code} value={c.code}>{c.flag} {c.country} ({c.code})</option>
           ))}
         </select>
       </div>
 
-      {/* Amount area */}
       <div className="px-4 pt-3 pb-2.5 flex flex-col items-end gap-0.5 bg-white">
         {isInput ? (
           <input
@@ -83,25 +85,37 @@ function CurrencyBox({
           />
         ) : (
           <span className="text-[22px] font-bold text-[#222222] tabular-nums">
-            {numericVal > 0 ? formatNumber(numericVal, code) : '—'}
+            {numericVal > 0 ? formatNumber(numericVal, cfg) : '—'}
           </span>
         )}
         <span className="text-[12px] text-[#878787] tabular-nums">
-          {numericVal > 0 ? formatWithUnit(numericVal, code) : `0 ${cfg.unit}`}
+          {numericVal > 0 ? formatWithUnit(numericVal, cfg) : `0 ${cfg.unit}`}
         </span>
       </div>
     </div>
   )
 }
 
-export default function ExchangeRateCalculator() {
+export default function ExchangeRateCalculator({ liveRates }: Props) {
   const [fromCurrency, setFromCurrency] = useState('KRW')
   const [toCurrency, setToCurrency] = useState('USD')
   const [fromAmount, setFromAmount] = useState('1000')
   const [copied, setCopied] = useState(false)
 
-  const fromCfg = getCfg(fromCurrency)
-  const toCfg = getCfg(toCurrency)
+  // 실시간 환율 적용
+  const currencies: CurrencyDef[] = useMemo(() =>
+    CURRENCY_META.map(m => ({
+      code: m.code,
+      country: m.country,
+      flag: m.flag,
+      unit: m.unit,
+      decimals: m.decimals,
+      rateToKRW: m.code === 'KRW' ? 1 : (liveRates?.[m.code] ?? m.defaultRate),
+    })),
+  [liveRates])
+
+  const fromCfg = currencies.find(c => c.code === fromCurrency)!
+  const toCfg = currencies.find(c => c.code === toCurrency)!
   const numericFrom = parseFloat(fromAmount) || 0
   const result = numericFrom * (fromCfg.rateToKRW / toCfg.rateToKRW)
 
@@ -109,69 +123,60 @@ export default function ExchangeRateCalculator() {
     const prev = fromCurrency
     setFromCurrency(toCurrency)
     setToCurrency(prev)
-    setFromAmount(result > 0 ? formatNumber(result, toCurrency).replace(/,/g, '') : '0')
+    setFromAmount(result > 0 ? formatNumber(result, toCfg).replace(/,/g, '') : '0')
   }
 
   const copy = useCallback(() => {
-    const text = `${formatWithUnit(result, toCurrency)}`
-    navigator.clipboard.writeText(text).catch(() => {})
+    navigator.clipboard.writeText(formatWithUnit(result, toCfg)).catch(() => {})
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
-  }, [result, toCurrency])
+  }, [result, toCfg])
 
-  const exchangeRateLabel = (() => {
+  const exchangeRateLabel = useMemo(() => {
     if (fromCurrency === toCurrency) return null
     const rate = fromCfg.rateToKRW / toCfg.rateToKRW
-    const formatted = rate < 0.01
-      ? rate.toFixed(6)
-      : rate < 10
-      ? rate.toFixed(4)
-      : rate.toLocaleString('ko-KR', { maximumFractionDigits: 2 })
+    const formatted = rate < 0.01 ? rate.toFixed(6) : rate < 10 ? rate.toFixed(4) : rate.toLocaleString('ko-KR', { maximumFractionDigits: 2 })
     return `1 ${fromCurrency} = ${formatted} ${toCurrency}`
-  })()
+  }, [fromCurrency, toCurrency, fromCfg, toCfg])
+
+  const isLive = !!liveRates
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-
       {/* Section header — Figma 1:167 */}
       <div className="px-5 pt-5 pb-4 flex items-center gap-1.5">
-        <h2
-          className="font-bold text-[#222222] tracking-[-0.3px]"
-          style={{ fontSize: '20px', lineHeight: '24px' }}
-        >
+        <h2 className="font-bold text-[#222222] tracking-[-0.3px]" style={{ fontSize: '20px', lineHeight: '24px' }}>
           환율계산기
         </h2>
-        <button
-          className="text-[#B3B9C4] hover:text-[#878787] transition-colors ml-0.5"
-          aria-label="환율계산기 안내"
-        >
+        <button className="text-[#B3B9C4] hover:text-[#878787] transition-colors ml-0.5" aria-label="안내">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.4" />
             <path d="M8 7.2v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             <circle cx="8" cy="5" r="0.7" fill="currentColor" />
           </svg>
         </button>
+        {isLive && (
+          <span className="ml-auto text-[10px] text-emerald-500 font-bold flex items-center gap-1">
+            <span className="w-1 h-1 rounded-full bg-emerald-400 inline-block" />
+            실시간 환율 적용
+          </span>
+        )}
       </div>
 
       <div className="px-5 pb-5">
-        {/* From box — Figma 1:176 */}
+        {/* From box */}
         <CurrencyBox
-          code={fromCurrency}
+          cfg={fromCfg}
+          allCurrencies={currencies}
           value={fromAmount}
           isInput={true}
           onChange={setFromAmount}
           onCurrencyChange={setFromCurrency}
         />
 
-        {/* Separator with swap — Figma 더블바 */}
+        {/* Separator — Figma 더블바 */}
         <div className="relative flex items-center justify-center py-3.5">
-          <div
-            className="h-[10px] w-[25px]"
-            style={{
-              borderTop: '3px solid #B3B9C4',
-              borderBottom: '3px solid #B3B9C4',
-            }}
-          />
+          <div className="h-[10px] w-[25px]" style={{ borderTop: '3px solid #B3B9C4', borderBottom: '3px solid #B3B9C4' }} />
           <button
             onClick={swap}
             className="absolute right-0 w-8 h-8 rounded-full border border-[#E5EBEE] bg-white flex items-center justify-center transition-all hover:bg-[#F7F9FA] hover:border-[#B3B9C4]"
@@ -185,32 +190,28 @@ export default function ExchangeRateCalculator() {
 
         {/* To box */}
         <CurrencyBox
-          code={toCurrency}
+          cfg={toCfg}
+          allCurrencies={currencies}
           value={result}
           isInput={false}
           onCurrencyChange={setToCurrency}
         />
 
         {/* Rate info + copy */}
-        <div className="flex items-center justify-between mt-3.5 pt-0.5">
+        <div className="flex items-center justify-between mt-3.5">
           <p className="text-[12px] text-[#878787]">
             {exchangeRateLabel && (
               <>
-                <span className="font-semibold text-[#222222]">{exchangeRateLabel.split('=')[0]}=</span>
+                <span className="font-semibold text-[#222222]">
+                  {exchangeRateLabel.split('=')[0]}=
+                </span>
                 {exchangeRateLabel.split('=')[1]}
-              </>
-            )}
-            {exchangeRateLabel && (
-              <>
                 <span className="mx-1.5 text-[#E5EBEE]">·</span>
-                <span>1분 전</span>
+                {isLive ? '실시간' : '기준환율'}
               </>
             )}
           </p>
-          <button
-            onClick={copy}
-            className="text-[12px] font-bold text-[#1066FF] hover:opacity-70 transition-opacity flex items-center gap-1"
-          >
+          <button onClick={copy} className="text-[12px] font-bold text-[#1066FF] hover:opacity-70 transition-opacity flex items-center gap-1">
             {copied ? (
               <span className="text-emerald-500">✓ 복사됨</span>
             ) : (
@@ -227,7 +228,9 @@ export default function ExchangeRateCalculator() {
       </div>
 
       <div className="px-5 pb-4 -mt-1">
-        <p className="text-[11px] text-[#B3B9C4]">Mock 환율 데이터 · 실제 거래 환율과 다를 수 있어요</p>
+        <p className="text-[11px] text-[#B3B9C4]">
+          {isLive ? 'Frankfurter (ECB) 실시간 환율 기반' : 'Mock 환율 데이터 · 실제 거래 환율과 다를 수 있어요'}
+        </p>
       </div>
     </div>
   )

@@ -11,6 +11,9 @@ interface Props {
   activeDate?: string | null
   trendColor: string
   isUp: boolean
+  currentRate?: number   // 실시간 환율 (없으면 mock 사용)
+  prevRate?: number      // 전일 환율 (없으면 mock 사용)
+  lastUpdated?: string   // 실시간 날짜 (있으면 표시)
 }
 
 const CHANGE_COLORS = {
@@ -18,11 +21,11 @@ const CHANGE_COLORS = {
   down: { text: '#1475F5', bg: '#EEF4FF' },
 }
 
-export default function CurrentRateCard({ currency, onCurrencyChange, activeRate, activeDate, trendColor, isUp }: Props) {
+export default function CurrentRateCard({ currency, onCurrencyChange, activeRate, activeDate, trendColor, isUp, currentRate: liveCurrentRate, prevRate: livePrevRate, lastUpdated }: Props) {
   const cfg = currencies.find(c => c.code === currency)!
   const rateData = getCurrencyRateData(currency)
-  const currentRate = getCurrencyCurrentRate(currency)
-  const prevRate = getCurrencyPrevRate(currency)
+  const currentRate = liveCurrentRate ?? getCurrencyCurrentRate(currency)
+  const prevRate = livePrevRate ?? getCurrencyPrevRate(currency)
 
   const displayRate = activeRate ?? currentRate
   const isHistorical = activeRate !== null && activeRate !== undefined
@@ -128,7 +131,11 @@ export default function CurrentRateCard({ currency, onCurrencyChange, activeRate
       {/* Last update */}
       <div className="px-5 pb-4 mt-3 flex items-center gap-1.5">
         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-        <span className="text-xs text-gray-400">1분 전 업데이트</span>
+        <span className="text-xs text-gray-400">
+          {lastUpdated
+            ? `${new Date(lastUpdated).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 기준 (ECB)`
+            : '1분 전 업데이트'}
+        </span>
       </div>
     </div>
   )

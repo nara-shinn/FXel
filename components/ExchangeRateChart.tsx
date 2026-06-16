@@ -5,10 +5,12 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
   ReferenceDot, ReferenceLine, ResponsiveContainer,
 } from 'recharts'
-import { getCurrencyRateData, insights, currencies } from '@/data/mockData'
+import { getCurrencyRateData, currencies, insights } from '@/data/mockData'
 import type { RateDataPoint, ChartPeriod, CurrencyCode } from '@/types'
 
 const ACCENT = '#1475F5'
+
+type DataStatus = 'loading' | 'live' | 'mock'
 
 interface Props {
   currency: CurrencyCode
@@ -38,11 +40,24 @@ export default function ExchangeRateChart({
   trendColor,
 }: Props) {
   const [period, setPeriod] = useState<ChartPeriod>('3M')
-  const allData = useMemo(() => getCurrencyRateData(currency), [currency])
+  const [allData, setAllData] = useState<RateDataPoint[]>(() => getCurrencyRateData(currency))
+  const [dataStatus, setDataStatus] = useState<DataStatus>('loading')
   const containerRef = useRef<HTMLDivElement>(null)
 
+  // ── 실제 히스토리 API 호출 ──
+  useEffect(() => {
+    setDataStatus('loading')
+    fetch(`/api/history?currency=${currency}`)
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then((data: RateDataPoint[]) => {
+        if (data?.length > 0) { setAllData(data); setDataStatus('live') }
+        else { setAllData(getCurrencyRateData(currency)); setDataStatus('mock') }
+      })
+      .catch(() => { setAllData(getCurrencyRateData(currency)); setDataStatus('mock') })
+  }, [currency])
+
   const filteredData = useMemo(() => {
-    const days = period === '1W' ? 7 : period === '1M' ? 30 : allData.length
+    const days = period === '1W' ? 7 : period === '1M' ? 30 : period === '3M' ? 90 : allData.length
     return allData.slice(-days)
   }, [allData, period])
 
@@ -133,7 +148,18 @@ export default function ExchangeRateChart({
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-3">
         <div>
-          <span className="text-[12px] font-semibold text-gray-400 tracking-wide uppercase">{currency}/KRW</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] font-semibold text-gray-400 tracking-wide uppercase">{currency}/KRW</span>
+            {dataStatus === 'loading' && (
+              <span className="text-[10px] text-gray-300 font-medium">로딩 중…</span>
+            )}
+            {dataStatus === 'live' && (
+              <span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1">
+                <span className="w-1 h-1 rounded-full bg-emerald-400 inline-block" />
+                LIVE
+              </span>
+            )}
+          </div>
           {activePoint && (
             <p className="text-[11px] text-gray-400 mt-0.5 tabular-nums">
               {new Date(activePoint.date).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })}

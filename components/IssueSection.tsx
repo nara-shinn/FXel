@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { issues, usdRateData, mainTheme } from '@/data/mockData'
+import { issues as issuesMock, usdRateData, mainTheme } from '@/data/mockData'
 import type { Issue } from '@/types'
 import clsx from 'clsx'
 
 interface Props {
+  issues?: Issue[]          // 실시간 이슈 (없으면 mockData 사용)
   activeIndex: number | null
   openIssueId: number | null
   onChipClick: (issueId: number) => void
@@ -245,7 +246,8 @@ function NewsBottomSheet({ issue, onClose }: { issue: Issue; onClose: () => void
   )
 }
 
-export default function IssueSection({ activeIndex, openIssueId, onChipClick, onClose, trendColor }: Props) {
+export default function IssueSection({ issues: propIssues, activeIndex, openIssueId, onChipClick, onClose, trendColor }: Props) {
+  const issues = propIssues ?? issuesMock
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [displayedIssue, setDisplayedIssue] = useState<Issue | null>(null)
 
