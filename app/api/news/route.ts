@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 // Google News RSS — 서버사이드 요청 차단 없음, API 키 불필요
 const RSS_URLS = [
@@ -52,9 +52,9 @@ async function fetchRssItems(): Promise<RssItem[]> {
 }
 
 export async function GET() {
-  const anthropicKey = process.env.ANTHROPIC_API_KEY
-  if (!anthropicKey) {
-    return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 503 })
+  const googleKey = process.env.GOOGLE_AI_API_KEY
+  if (!googleKey) {
+    return NextResponse.json({ error: 'GOOGLE_AI_API_KEY not configured' }, { status: 503 })
   }
 
   try {
@@ -64,15 +64,11 @@ export async function GET() {
       return NextResponse.json({ issues: [] })
     }
 
-    const client = new Anthropic({ apiKey: anthropicKey })
+    const genAI = new GoogleGenerativeAI(googleKey)
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
     const today = new Date().toISOString().split('T')[0]
 
-    const msg = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2500,
-      messages: [{
-        role: 'user',
-        content: `다음 영문/한국어 금융 뉴스 기사들을 분석해서 원/달러 환율에 영향을 준 핵심 이슈 최대 6개를 골라 한국어로 요약해줘.
+    const prompt = `다음 영문/한국어 금융 뉴스 기사들을 분석해서 원/달러 환율에 영향을 준 핵심 이슈 최대 6개를 골라 한국어로 요약해줘.
 
 반드시 아래 JSON 배열 형식만 반환 (다른 텍스트 없이):
 [
@@ -93,13 +89,12 @@ export async function GET() {
 ]
 
 뉴스 기사:
-${items.map((item, i) => `[${i + 1}] ${item.title}\n${item.description ? item.description.slice(0, 200) : ''}\nURL: ${item.link}`).join('\n\n')}`,
-      }],
-    })
+${items.map((item, i) => `[${i + 1}] ${item.title}\n${item.description ? item.description.slice(0, 200) : ''}\nURL: ${item.link}`).join('\n\n')}`
 
-    const raw = msg.content[0].type === 'text' ? msg.content[0].text : '[]'
+    const result = await model.generateContent(prompt)
+    const raw = result.response.text()
     const jsonMatch = raw.match(/\[[\s\S]*\]/)
-    if (!jsonMatch) throw new Error('Claude returned no JSON array')
+    if (!jsonMatch) throw new Error('Gemini returned no JSON array')
     const parsed: any[] = JSON.parse(jsonMatch[0])
 
     const reflection = [
