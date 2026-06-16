@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
+import { track } from '@/lib/mixpanel'
 
 interface CurrencyDef {
   code: string
@@ -120,6 +121,7 @@ export default function ExchangeRateCalculator({ liveRates }: Props) {
   const result = numericFrom * (fromCfg.rateToKRW / toCfg.rateToKRW)
 
   const swap = () => {
+    track('Calculator Swap', { from: fromCurrency, to: toCurrency })
     const prev = fromCurrency
     setFromCurrency(toCurrency)
     setToCurrency(prev)

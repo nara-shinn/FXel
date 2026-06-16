@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { track } from '@/lib/mixpanel'
 import Header from '@/components/Header'
 import CurrentRateCard from '@/components/CurrentRateCard'
 import ExchangeRateChart from '@/components/ExchangeRateChart'
@@ -24,6 +25,16 @@ interface LiveRates {
 
 export default function HomePage() {
   const [currency, setCurrency] = useState<CurrencyCode>('USD')
+
+  const handleCurrencyChange = useCallback((c: CurrencyCode) => {
+    setCurrency(c)
+    track('Currency Tab Click', { currency: c })
+  }, [])
+
+  const handleIssueChipClick = useCallback((id: number) => {
+    setOpenIssueId(id)
+    track('Issue Chip Click', { issueId: id })
+  }, [])
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const [openIssueId, setOpenIssueId] = useState<number | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -94,7 +105,7 @@ export default function HomePage() {
           <div className="lg:col-span-2">
             <CurrentRateCard
               currency={currency}
-              onCurrencyChange={setCurrency}
+              onCurrencyChange={handleCurrencyChange}
               activeRate={activePoint?.rate ?? null}
               activeDate={activePoint?.date ?? null}
               trendColor={trendColor}
@@ -122,7 +133,7 @@ export default function HomePage() {
               issues={displayIssues}
               activeIndex={activeIndex}
               openIssueId={openIssueId}
-              onChipClick={(id) => setOpenIssueId(id)}
+              onChipClick={handleIssueChipClick}
               onClose={() => setOpenIssueId(null)}
               trendColor={trendColor}
             />

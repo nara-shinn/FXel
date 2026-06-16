@@ -6,6 +6,7 @@ import {
   ReferenceDot, ReferenceLine, ResponsiveContainer,
 } from 'recharts'
 import { getCurrencyRateData, currencies, insights } from '@/data/mockData'
+import { track } from '@/lib/mixpanel'
 import type { RateDataPoint, ChartPeriod, CurrencyCode } from '@/types'
 
 const ACCENT = '#1475F5'
@@ -171,7 +172,7 @@ export default function ExchangeRateChart({
           {PERIODS.map(p => (
             <button
               key={p.value}
-              onClick={() => setPeriod(p.value)}
+              onClick={() => { setPeriod(p.value); track('Chart Period Click', { period: p.value, currency }) }}
               className="text-[11px] font-bold px-2.5 py-1 rounded-md transition-all duration-150"
               style={
                 period === p.value
