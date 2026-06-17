@@ -65,7 +65,7 @@ export async function GET() {
     }
 
     const genAI = new GoogleGenerativeAI(googleKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
     const today = new Date().toISOString().split('T')[0]
 
     const prompt = `다음 영문/한국어 금융 뉴스 기사들을 분석해서 원/달러 환율에 영향을 준 핵심 이슈 최대 6개를 골라 한국어로 요약해줘.
