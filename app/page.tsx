@@ -45,6 +45,7 @@ export default function HomePage() {
 
   // ── 실시간 뉴스 이슈 ──
   const [liveIssues, setLiveIssues] = useState<Issue[] | null>(null)
+  const [liveHeadline, setLiveHeadline] = useState<string | null>(null)
 
   // ── 환율 fetch ──
   useEffect(() => {
@@ -59,7 +60,10 @@ export default function HomePage() {
   useEffect(() => {
     fetch('/api/news')
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(data => { if (data.issues?.length) setLiveIssues(data.issues) })
+      .then(data => {
+        if (data.issues?.length) setLiveIssues(data.issues)
+        if (data.headline) setLiveHeadline(data.headline)
+      })
       .catch(() => { /* API 키 없으면 mock 사용 */ })
   }, [])
 
@@ -131,6 +135,7 @@ export default function HomePage() {
           <div className="lg:col-span-3">
             <IssueSection
               issues={displayIssues}
+              headline={liveHeadline}
               activeIndex={activeIndex}
               openIssueId={openIssueId}
               onChipClick={handleIssueChipClick}
