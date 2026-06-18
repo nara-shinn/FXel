@@ -44,6 +44,17 @@ body {
 .animate-slide-down { animation: slide-down 0.22s ease-out; }
 .animate-fade-in   { animation: fade-in   0.2s ease-out; }
 
+@keyframes flip-out {
+  from { transform: perspective(1400px) rotateY(0deg); }
+  to   { transform: perspective(1400px) rotateY(-90deg); }
+}
+@keyframes flip-in {
+  from { transform: perspective(1400px) rotateY(90deg); }
+  to   { transform: perspective(1400px) rotateY(0deg); }
+}
+.flip-out { animation: flip-out 0.18s ease-in  forwards; }
+.flip-in  { animation: flip-in  0.22s ease-out forwards; }
+
 .recharts-cartesian-grid-horizontal line,
 .recharts-cartesian-grid-vertical line {
   stroke: #F3F4F6;
